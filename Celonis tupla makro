@@ -1,0 +1,113 @@
+Sub Celonis() //
+
+// Connect worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Define variables and set active workbook as WB1
+Dim LoopCount As Integer
+Dim RefValue As Integer
+
+Dim WB1 As Workbook
+Dim WB2 As Workbook
+Dim WB3 As Workbook
+
+Set WB1 = ActiveWorkbook
+
+Range("B1:C100").Clear
+
+// Define Cvalue which is equal to amount of IDOC numbers user has to loop trough
+MaxValue = Range("G1")
+Cvalue = ActiveSheet.Range("G1").Value
+
+Range("A1:A" & Cvalue).Copy
+
+// Access to IIL report to search invoice numbers using IDOC numbers
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "zmm_iil"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/btn%_S_IDOC_%_APP_%-VALU_PUSH").press
+session.findById("wnd[1]/tbar[0]/btn[24]").press
+session.findById("wnd[1]/tbar[0]/btn[8]").press
+session.findById("wnd[0]/tbar[1]/btn[8]").press
+
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").pressToolbarContextButton "&MB_EXPORT"
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").selectContextMenuItem "&XXL"
+//define folder and name for exported sheet
+session.findById("wnd[1]/usr/ctxtDY_PATH").Text = "C:\Users\lainelaf\Documents\SAP\SAP GUI"
+session.findById("wnd[1]/usr/ctxtDY_FILENAME").Text = "export1.XLSX"
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/tbar[0]/btn[11]").press
+
+// Wait for exported worksheet to open
+Application.Wait Now + TimeValue("00:00:01")
+
+// Set exported worksheet as WB2
+Set WB2 = Application.Workbooks.Open("C:\Users\lainelaf\Documents\SAP\SAP GUI\export1")
+
+WB2.Worksheets("Sheet1").Range("H2:H" & Cvalue + 1).Copy
+
+session.findById("wnd[0]/tbar[0]/btn[15]").press
+session.findById("wnd[0]/tbar[0]/btn[15]").press
+
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "zmm_iil"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/btn%_S_XBLNR_%_APP_%-VALU_PUSH").press
+session.findById("wnd[1]/tbar[0]/btn[24]").press
+session.findById("wnd[1]/tbar[0]/btn[8]").press
+session.findById("wnd[0]/tbar[1]/btn[8]").press
+
+// Sort invoices by invoice number and export new file
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").setCurrentCell -1, "XBLNR"
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").selectColumn "XBLNR"
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").pressColumnHeader "XBLNR"
+
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").pressToolbarContextButton "&MB_EXPORT"
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").selectContextMenuItem "&XXL"
+session.findById("wnd[1]/usr/ctxtDY_PATH").Text = "C:\Users\lainelaf\Documents\SAP\SAP GUI"
+session.findById("wnd[1]/usr/ctxtDY_FILENAME").Text = "export2.XLSX"
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/tbar[0]/btn[11]").press
+
+// Set second exported worksheet as WB3
+Set WB3 = Application.Workbooks.Open("C:\Users\lainelaf\Documents\SAP\SAP GUI\export2")
+
+WB3.Worksheets("Sheet1").Range("H2:H100").Copy Destination:=WB1.Worksheets("Taul1").Range("B1")
+
+// Set Rvalue equal to number of invoices
+Rvalue = WB1.Worksheets("Taul1").Range("H1").Value
+
+LoopCount = 0
+
+// Loop trough all invoices to find out which they came to workflow
+Do Until LoopCount = Rvalue
+
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").currentCellRow = LoopCount
+session.findById("wnd[0]/tbar[1]/btn[20]").press
+
+WB1.Worksheets("Taul1").Range("C1").Offset(LoopCount, 0) = session.findById("wnd[0]/usr/txtEDPP1-PARNUM").Text
+
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+
+LoopCount = LoopCount + 1
+
+Loop
+
+// Notify user that macro has finished
+MsgBox ("Valmis! Voit sulkea auenneet ikkunat: export1 & export2")
+
+End Sub
