@@ -1,0 +1,254 @@
+Sub Hae_PO_Numerot() // Exports purchase order numbers from IIL report
+
+Range("H50:K74").Clear // Clears range that is used to stored values, if previous user has left old values behind
+
+// Connect Worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Opens transaction to get access to IIL report
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "zmm_iil"
+session.findById("wnd[0]").sendVKey 0
+
+// Filters out every other invoice type, except factory invoices
+session.findById("wnd[0]/usr/ctxtS_WF_STA-LOW").Text = "f6"
+session.findById("wnd[0]/usr/ctxtS_WF_STA-LOW").SetFocus
+session.findById("wnd[0]/usr/ctxtS_WF_STA-LOW").caretPosition = 2
+session.findById("wnd[0]").sendVKey 8
+
+// Define where you want to save exported files and export them
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").pressToolbarContextButton "&MB_EXPORT"
+session.findById("wnd[0]/usr/cntlIIL_MAIN/shellcont/shell").selectContextMenuItem "&XXL"
+session.findById("wnd[1]/usr/ctxtDY_PATH").Text = "X:\K-Talouspalvelu\Yhteinen\Invoicing\Onninen\Automaatiot\Kauttalaskutus\Exportit"
+session.findById("wnd[1]/usr/ctxtDY_PATH").caretPosition = 82
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/tbar[0]/btn[11]").press
+
+// Return to User Menu
+session.findById("wnd[0]/tbar[0]/btn[15]").press
+session.findById("wnd[0]/tbar[0]/btn[15]").press
+
+// Transform long vendor numbers from different worksheet into values of shorter vendornumbers
+    Range("B50:B74").Select
+    Selection.Copy
+    Range("H50").Select
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Range("D50:D74").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("J50").Select
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Range("E50:E74").Select
+    Application.CutCopyMode = False
+    Selection.Copy
+    Range("K50").Select
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+        
+    Range("H50:H74").Select
+    With Selection
+        .NumberFormat = "General"
+        .Value = .Value
+    End With
+    
+    // Scroll back to top of the screen
+    ActiveWindow.ScrollRow = 1
+    ActiveWindow.ScrollColumn = 1
+
+End Sub
+
+
+Sub Vk13()
+
+// Connect Worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Define variables, reset loop and offset counts and clear workbook if previous user has left old data behind
+Dim LoopCount As Integer
+Dim OffsetCount As Integer
+Dim Validity As String
+Dim Value As String
+Dim POValue As String
+Dim VendorValue As String
+
+LoopCount = 0
+OffsetCount = 0
+
+Range("D2:D26").Clear
+
+// Open transaction VK13 to check if vendor and customer have active contract on header level
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "vk13"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ctxtRV13A-KSCHL").Text = "zxph"
+session.findById("wnd[0]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/usr/sub:SAPLV14A:0100/radRV130-SELKZ[3,0]").Select
+session.findById("wnd[1]/usr/sub:SAPLV14A:0100/radRV130-SELKZ[3,0]").SetFocus
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+
+
+// Loop trough vendor and customer numbers to check header level contracts
+Do While LoopCount < 26
+
+    POValue = Worksheets("Taul1").Range("A2").Offset(OffsetCount, 0)
+    VendorValue = Worksheets("Taul1").Range("B2").Offset(OffsetCount, 0)
+
+    session.findById("wnd[0]/usr/ctxtF001").Text = "1000"
+    session.findById("wnd[0]/usr/ctxtF002").Text = POValue
+    session.findById("wnd[0]/usr/ctxtF003-LOW").Text = VendorValue
+    session.findById("wnd[0]/tbar[1]/btn[8]").press
+    
+    viesti = session.findById("wnd[0]/sbar").Text
+    
+    If viesti = "No condition records exist for this selection" Then  // Skips over vendor-customer combination that doesnt have active contract insted of crashing the script
+        LoopCount = LoopCount + 1
+        OffsetCount = OffsetCount + 1
+        GoTo ContinueDO
+    ElseIf viesti = "Customer 0 does not exist" Then
+        GoTo Finish
+    Else
+        session.findById("wnd[0]/usr/ctxtRV130-DATAM").caretPosition = 10
+        session.findById("wnd[0]/usr/tblSAPMV13ATCTRL_FAST_ENTRY/txtKONP-KBETR[4,0]").SetFocus
+        Value = session.findById("wnd[0]/usr/tblSAPMV13ATCTRL_FAST_ENTRY/txtKONP-KBETR[4,0]").Text // Copies discount % from contract to excel
+        Range("D2").Offset(OffsetCount, 0) = Value
+        session.findById("wnd[0]/tbar[0]/btn[3]").press
+        
+        LoopCount = LoopCount + 1
+        OffsetCount = OffsetCount + 1
+        
+        GoTo ContinueDO
+    End If
+
+ContinueDO:
+Loop
+
+Finish:
+
+// Return to User Menu and give user a notification that search is completed
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+MsgBox "Haku valmis!", vbOKOnly
+
+End Sub
+
+Sub Vk13_2() // Check if vendor and customer has an active contract
+
+// Connect worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Define variables, reset loop and offset counts and clear workbook if previous user has left old data behind
+Dim LoopCount As Integer
+Dim OffsetCount As Integer
+Dim Validity As String
+Dim Value As String
+Dim POValue As String
+Dim VendorValue As String
+
+LoopCount = 0
+OffsetCount = 0
+
+Range("E2:E26").Clear
+
+// Open transaction VK13 to check if vendor and customer have active contract on item level
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "vk13"
+session.findById("wnd[0]").sendVKey 0
+session.findById("wnd[0]/usr/ctxtRV13A-KSCHL").Text = "zxpi"
+session.findById("wnd[0]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/usr/sub:SAPLV14A:0100/radRV130-SELKZ[3,0]").Select
+session.findById("wnd[1]/usr/sub:SAPLV14A:0100/radRV130-SELKZ[3,0]").SetFocus
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+
+// Loop trough vendor and customer numbers to check header level contracts
+Do While LoopCount < 26
+
+    POValue = Worksheets("Taul1").Range("A2").Offset(OffsetCount, 0)
+    VendorValue = Worksheets("Taul1").Range("B2").Offset(OffsetCount, 0)
+
+    session.findById("wnd[0]/usr/ctxtF001").Text = "1000"
+    session.findById("wnd[0]/usr/ctxtF002").Text = POValue
+    session.findById("wnd[0]/usr/ctxtF003-LOW").Text = VendorValue
+    session.findById("wnd[0]/tbar[1]/btn[8]").press
+    
+    viesti = session.findById("wnd[0]/sbar").Text
+    
+    If viesti = "No condition records exist for this selection" Then
+        LoopCount = LoopCount + 1
+        OffsetCount = OffsetCount + 1
+        GoTo ContinueDO
+    ElseIf viesti = "Fill out all required entry fields" Then
+        GoTo Finish
+    Else
+        session.findById("wnd[0]/usr/ctxtRV130-DATAM").caretPosition = 10
+        session.findById("wnd[0]/usr/tblSAPMV13ATCTRL_FAST_ENTRY/txtKONP-KBETR[4,0]").SetFocus
+        Value = session.findById("wnd[0]/usr/tblSAPMV13ATCTRL_FAST_ENTRY/txtKONP-KBETR[4,0]").Text
+        Range("E2").Offset(OffsetCount, 0) = Value
+        session.findById("wnd[0]/tbar[0]/btn[3]").press
+        
+        LoopCount = LoopCount + 1
+        OffsetCount = OffsetCount + 1
+        
+        GoTo ContinueDO
+    End If
+
+ContinueDO:
+Loop
+
+Finish:
+// Return to user menu
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+session.findById("wnd[0]/tbar[0]/btn[3]").press
+
+ActiveSheet.Range("$A$1:$E$26").AutoFilter Field:=4, Criteria1:="=" // Filter out all of vendor-customer combinations that have an active contract
+
+MsgBox "Haku valmis!", vbOKOnly
+
+End Sub
+
+Sub ClearFilters() // Clear existing data from worksheet
+
+ActiveSheet.ShowAllData
+Range("D2:E26").Clear
+
+End Sub
