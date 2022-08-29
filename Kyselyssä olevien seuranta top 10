@@ -1,0 +1,55 @@
+Sub Haku()
+
+
+//Define variables, clear previous data and set range to flip first name and last name
+Dim Rng As Range
+Dim WorkRng As Range
+Dim Sign As String
+Dim HakuRng As Range
+Dim HaettavaHenkilö As Range
+Dim rngTemp As Range
+Dim PhakuRng As Range
+Dim Raportoitava As Range
+Dim OffsetCount As Integer
+
+
+Range("D2:D12").Clear
+
+Set WorkRng = Application.Range("B2:B12")
+
+// Flip first name and last name
+Sign = " "
+
+For Each Rng In WorkRng
+    xValue = Rng.Value
+    NameList = VBA.Split(xValue, Sign)
+    If UBound(NameList) = 1 Then
+        Rng.Value = NameList(1) + Sign + NameList(0)
+    End If
+Next
+
+// Switch sheet to empoyee datasheet to set range for search
+Worksheets("Henkilöstödata").Activate
+
+Set rngTemp = ActiveWorkbook.Sheets("Henkilöstödata").Cells.Find("*", SearchOrder:=xlByRows, SearchDirection:=xlPrevious)
+If Not rngTemp Is Nothing Then
+    Set PhakuRng = ActiveWorkbook.Sheets("Henkilöstödata").Range(Cells(1, 1), rngTemp)
+End If
+
+// Reset OffsetCount and Loop trough employees to find their reporting supervisor
+OffsetCount = 0
+
+Do Until OffsetCount = 11
+
+    Set HaettavaHenkilö = ActiveWorkbook.Sheets("Taul1").Range("B2").Offset(OffsetCount, 0)
+    Set Raportoitava = ActiveWorkbook.Sheets("Taul1").Range("D2").Offset(OffsetCount, 0)
+
+    Raportoitava.Value = Application.VLookup(HaettavaHenkilö, PhakuRng, 4, False)
+
+    OffsetCount = OffsetCount + 1
+
+Loop
+
+Worksheets("Taul1").Activate
+
+End Sub
