@@ -1,0 +1,70 @@
+Sub Suosikit()
+
+// Define variables
+Dim OffsetCount As Integer
+Dim LoopCount As Integer
+Dim Transaktio As String
+
+// Connect worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Reset Offset count and loop
+OffsetCount = 0
+LoopCount = 0
+
+//Loop trough values from user input to add transactions to SAP favourites
+Do While LoopCount < Range("L100")
+
+    Transaktio = Range("A1").Offset(OffsetCount, 0)
+
+    session.findById("wnd[0]/mbar/menu[2]/menu[7]").Select
+    session.findById("wnd[1]/usr/sub:SAPLSPO4:0300/txtSVALD-VALUE[0,21]").Text = Transaktio
+    session.findById("wnd[1]/usr/sub:SAPLSPO4:0300/txtSVALD-VALUE[0,21]").caretPosition = 7
+    session.findById("wnd[1]/tbar[0]/btn[0]").press
+    
+    LoopCount = LoopCount + 1
+    OffsetCount = OffsetCount + 1
+    
+Loop
+
+
+End Sub
+
+Sub SuosikkienPoisto()
+
+// Connect worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Delete favourite transactions
+session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").selectedNode = "Favo"
+session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").nodeContextMenu "Favo"
+session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").selectContextMenuItem "XXDELF"
+session.findById("wnd[1]/usr/btnBUTTON_1").press
+
+End Sub
