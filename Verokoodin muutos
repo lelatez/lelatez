@@ -1,0 +1,56 @@
+Sub Verokoodi()
+
+// Connect worksheet to SAP Scripting engine
+If Not IsObject(SapApplication) Then
+   Set SapGuiAuto = GetObject("SAPGUI")
+   Set SapApplication = SapGuiAuto.GetScriptingEngine
+End If
+If Not IsObject(Connection) Then
+   Set Connection = SapApplication.Children(0)
+End If
+If Not IsObject(session) Then
+   Set session = Connection.Children(0)
+End If
+If IsObject(WScript) Then
+   WScript.ConnectObject session, "on"
+   WScript.ConnectObject SapApplication, "on"
+End If
+
+// Define variables from user input
+Dim PoNumber As String
+Dim TaxCode As String
+Dim Rows As Integer
+Dim LoopCount As Integer
+
+PoNumber = Range("B1")
+TaxCode = Range("B3")
+Rows = Range("B5")
+LoopCount = 0
+
+// Open transaction ME23N to access purchase order
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/tbar[0]/okcd").Text = "me23n"
+session.findById("wnd[0]").sendVKey 0
+
+// Find right purchase order from user input data
+session.findById("wnd[0]/tbar[1]/btn[17]").press
+session.findById("wnd[1]/usr/subSUB0:SAPLMEGUI:0003/ctxtMEPO_SELECT-EBELN").Text = PoNumber
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+
+// Go to taxes tab
+session.findById("wnd[0]/usr/subSUB0:SAPLMEGUI:0015/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB1:SAPLMEGUI:6000/btn%#AUTOTEXT002").press
+session.findById("wnd[0]/tbar[1]/btn[7]").press
+
+// Loop trough all items in purchase order and change tax code determined by user input
+Do Until LoopCount >= Rows
+
+    session.findById("wnd[0]/usr/subSUB0:SAPLMEGUI:0015/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:1303/tabsITEM_DETAIL/tabpTABIDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1317/ctxtMEPO1317-MWSKZ").Text = TaxCode
+    session.findById("wnd[0]/usr/subSUB0:SAPLMEGUI:0015/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:1303/tabsITEM_DETAIL/tabpTABIDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1317/ctxtMEPO1317-MWSKZ").SetFocus
+    session.findById("wnd[0]/usr/subSUB0:SAPLMEGUI:0015/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB2:SAPLMEGUI:1303/tabsITEM_DETAIL/tabpTABIDT7/ssubTABSTRIPCONTROL1SUB:SAPLMEGUI:1317/ctxtMEPO1317-MWSKZ").caretPosition = 2
+    session.findById("wnd[0]/usr/subSUB0:SAPLMEGUI:0015/subSUB3:SAPLMEVIEWS:1100/subSUB2:SAPLMEVIEWS:1200/subSUB1:SAPLMEGUI:1301/subSUB1:SAPLMEGUI:6000/btn%#AUTOTEXT002").press
+    
+    LoopCount = LoopCount + 1
+
+Loop
+
+End Sub
