@@ -53,3 +53,39 @@ Loop
 Worksheets("Taul1").Activate
 
 End Sub
+
+
+
+Sub AddToDatabase() // Adds employee to employee database
+
+// Define variables
+Dim EmpData As Worksheet
+Dim AddedData As Worksheet
+Dim LastRow As Long
+Dim NextRow As Long
+
+Set EmpData = Worksheets("Henkilöstödata") // Destination for new data
+Set AddedData = Worksheets("Taul1") // User input data
+
+// Find first empty row from employee database
+LastRow = EmpData.Cells.Find("*", [A1], , , xlByRows, xlPrevious).Row
+NextRow = LastRow + 1
+
+// Add data to employee database from user input
+EmpData.Range("A" & NextRow) = AddedData.Range("B20").Value
+EmpData.Range("B" & NextRow) = AddedData.Range("D20").Value
+EmpData.Range("C" & NextRow) = AddedData.Range("F20").Value
+EmpData.Range("D" & NextRow) = AddedData.Range("H20").Value
+
+//Clear user input fields
+AddedData.Range("B20").Value = ""
+AddedData.Range("D20").Value = ""
+AddedData.Range("F20").Value = ""
+AddedData.Range("H20").Value = ""
+
+// Save workbook and notify user that new data have been added to employee database
+ActiveWorkbook.Save
+MsgBox "Lisäys tietokantaan onnistui!", vbInformation, ""
+
+End Sub
+
